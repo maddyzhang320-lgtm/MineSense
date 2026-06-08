@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body>
+<canvas id="c192" width="192" height="192"></canvas>
+<canvas id="c512" width="512" height="512"></canvas>
+<script>
+function drawIcon(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  // Background
+  ctx.fillStyle = '#0a0e17';
+  ctx.beginPath(); ctx.roundRect(0, 0, size, size, size*0.18); ctx.fill();
+  // Border glow
+  ctx.strokeStyle = '#00e07a'; ctx.lineWidth = size*0.04;
+  ctx.beginPath(); ctx.roundRect(size*0.04, size*0.04, size*0.92, size*0.92, size*0.16); ctx.stroke();
+  // Shield icon
+  const cx = size/2, cy = size*0.4, s = size*0.5;
+  ctx.fillStyle = '#00e07a';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-s*0.8);
+  ctx.lineTo(cx+s*0.6, cy-s*0.3);
+  ctx.lineTo(cx+s*0.6, cy+s*0.2);
+  ctx.lineTo(cx, cy+s*0.7);
+  ctx.lineTo(cx-s*0.6, cy+s*0.2);
+  ctx.lineTo(cx-s*0.6, cy-s*0.3);
+  ctx.closePath(); ctx.fill();
+  // Checkmark
+  ctx.strokeStyle = '#0a0e17'; ctx.lineWidth = size*0.08;
+  ctx.beginPath(); ctx.moveTo(cx-size*0.1, cy); ctx.lineTo(cx, cy+size*0.12); ctx.lineTo(cx+size*0.15, cy-size*0.1);
+  ctx.stroke();
+  // Text
+  ctx.fillStyle = '#ffffff'; ctx.font = `bold ${size*0.13}px sans-serif`; ctx.textAlign = 'center';
+  ctx.fillText('智感矿安', cx, cy+s*0.95);
+}
+drawIcon(document.getElementById('c192'), 192);
+drawIcon(document.getElementById('c512'), 512);
+
+// Auto-download (run in browser to get PNGs)
+const links = [
+  { canvas: 'c192', name: 'icon-192.png' },
+  { canvas: 'c512', name: 'icon-512.png' },
+];
+links.forEach(l => {
+  const a = document.createElement('a');
+  a.download = l.name;
+  a.href = document.getElementById(l.canvas).toDataURL('image/png');
+  a.textContent = `Download ${l.name}`;
+  a.style.cssText = 'display:block;margin:10px;font-size:18px';
+  document.body.appendChild(a);
+});
+</script>
+</body></html>

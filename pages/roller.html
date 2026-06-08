@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>托辊专项检测 - 矿盾平台</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../libs/echarts.min.js"></script>
+    <script src="../libs/gsap.min.js"></script>
+    <style>
+        /* ===== 托辊诊断页面专属布局 ===== */
+
+        /* 顶部指标卡片行 */
+        .roller-metrics {
+            display: flex;
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .metric-card {
+            flex: 1;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+            transition: border-color 0.4s;
+        }
+        .metric-card:hover { border-color: var(--green); }
+        .metric-card .mc-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .metric-card .mc-value {
+            font-size: 38px;
+            font-weight: 900;
+            color: #fff;
+        }
+        .metric-card .mc-value.g { color: var(--green); text-shadow: 0 0 16px var(--green-glow); }
+        .metric-card .mc-value.o { color: var(--warn); text-shadow: 0 0 16px rgba(255,152,0,0.4); }
+        .metric-card .mc-unit {
+            font-size: 13px; color: var(--text-dim); margin-left: 4px; font-weight: 400;
+        }
+
+        /* 中部双栏 */
+        .roller-row {
+            display: flex;
+            gap: var(--gap);
+            flex: 1;
+            min-height: 0;
+            margin-bottom: var(--gap);
+        }
+
+        /* 传送带模型卡片 */
+        .conveyor-card {
+            flex: 1.3;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .conveyor-model {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            padding: 20px 10px;
+        }
+        /* 传送带动画 */
+        .belt {
+            height: 8px;
+            background: repeating-linear-gradient(90deg,
+                rgba(0,224,122,0.15) 0px, rgba(0,224,122,0.15) 30px,
+                rgba(0,224,122,0.04) 30px, rgba(0,224,122,0.04) 32px);
+            border-radius: 4px;
+            animation: belt-move 3s linear infinite;
+            position: relative;
+        }
+        @keyframes belt-move { from { background-position: 0 0; } to { background-position: 62px 0; } }
+        /* 托辊点位行 */
+        .rollers-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            margin-top: -8px;
+            padding: 0 10px;
+        }
+        .roller-dot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .roller-dot .rd-visual {
+            width: 12px; height: 24px;
+            border-radius: 3px;
+            border: 2px solid var(--green);
+            background: rgba(0,224,122,0.08);
+            transition: transform 0.2s;
+        }
+        .roller-dot .rd-visual.warn {
+            border-color: var(--warn);
+            background: rgba(255,152,0,0.12);
+            box-shadow: 0 0 12px rgba(255,152,0,0.4);
+            animation: roller-pulse 1.5s ease-in-out infinite;
+        }
+        .roller-dot .rd-visual.risk {
+            border-color: #ffcc00;
+            background: rgba(255,204,0,0.08);
+        }
+        @keyframes roller-pulse {
+            0%,100% { box-shadow: 0 0 8px rgba(255,152,0,0.3); }
+            50% { box-shadow: 0 0 18px rgba(255,152,0,0.7); }
+        }
+        .roller-dot .rd-label {
+            font-size: 9px; color: var(--text-dim);
+        }
+        .roller-dot .rd-label.warn-text { color: var(--warn); font-weight: 600; }
+        .roller-dot .rd-label.risk-text { color: #ffcc00; font-weight: 600; }
+        .belt-legend {
+            display: flex;
+            gap: 14px; font-size: 10px; color: var(--text-dim);
+            margin-top: 14px; padding-top: 10px;
+            border-top: 1px solid var(--green-faint);
+        }
+        .belt-legend span { display: flex; align-items: center; gap: 5px; }
+        .belt-legend .dot { width: 7px; height: 7px; border-radius: 1px; }
+        .belt-legend .dot.g { background: var(--green); }
+        .belt-legend .dot.o { background: var(--warn); }
+        .belt-legend .dot.y { background: #ffcc00; }
+
+        /* 频谱卡片 */
+        .spectrum-card {
+            flex: 0.8;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .spectrum-bars {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 2px;
+            padding: 10px 0;
+            min-height: 0;
+        }
+        .spec-bar {
+            flex: 1;
+            border-radius: 2px 2px 0 0;
+            animation: spec-grow 1s ease-in-out infinite alternate;
+        }
+        @keyframes spec-grow {
+            from { transform: scaleY(0.3); }
+            to { transform: scaleY(1); }
+        }
+        .spec-stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px; color: var(--text-dim);
+            padding: 6px 0;
+            border-top: 1px solid var(--green-faint);
+        }
+        .spec-stat + .spec-stat { margin-top: 8px; }
+
+        /* 异常报告表格 */
+        .report-card {
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            overflow: hidden;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .report-card .card-header {
+            padding: 12px 16px;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .report-table thead th {
+            background: rgba(0,60,30,0.4);
+            color: var(--green);
+            font-weight: 500;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--green-dim);
+            text-align: left;
+            white-space: nowrap;
+            letter-spacing: 1px;
+            font-size: 11px;
+        }
+        .report-table tbody td {
+            padding: 10px 16px;
+            color: var(--text);
+            border-bottom: 1px solid var(--green-faint);
+        }
+        .report-table tbody tr:hover td {
+            background: var(--green-faint);
+        }
+        .report-table .id-cell { color: var(--green); font-weight: 600; }
+        .report-table .type-warn { color: var(--warn); font-weight: 600; }
+        .report-table .type-risk { color: #ffcc00; font-weight: 600; }
+
+        /* 托辊诊断视频叠加 */
+        .roller-overlay {
+            position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        }
+        .roller-overlay .ro-grid {
+            position: absolute; inset: 0;
+            background:
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,224,122,0.04) 39px, rgba(0,224,122,0.04) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,224,122,0.04) 39px, rgba(0,224,122,0.04) 40px);
+        }
+        .roller-overlay .ro-measure {
+            position: absolute; transform: translate(-50%, -50%);
+        }
+        .roller-overlay .ro-cross {
+            width: 28px; height: 28px;
+            border: 1px solid rgba(0,224,122,0.5);
+            border-radius: 50%;
+            position: relative;
+        }
+        .roller-overlay .ro-cross::before {
+            content: ''; position: absolute; top: 50%; left: -8px; right: -8px;
+            height: 1px; background: rgba(0,224,122,0.5);
+        }
+        .roller-overlay .ro-cross::after {
+            content: ''; position: absolute; left: 50%; top: -8px; bottom: -8px;
+            width: 1px; background: rgba(0,224,122,0.5);
+        }
+        .roller-overlay .ro-tag {
+            position: absolute; top: 18px; left: 16px;
+            font-size: 10px; font-weight: 600; white-space: nowrap;
+            background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 2px;
+        }
+        .roller-overlay .ro-tag.warn { color: var(--warn); border: 1px solid rgba(255,152,0,0.3); }
+        .roller-overlay .ro-tag.risk { color: #ffcc00; border: 1px solid rgba(255,204,0,0.3); }
+        .roller-overlay .ro-tag.ok { color: var(--green); border: 1px solid var(--green-dim); }
+        .roller-overlay .ro-stats {
+            position: absolute; bottom: 8px; left: 8px;
+            display: flex; gap: 8px;
+        }
+        .roller-overlay .ro-stat {
+            background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 2px;
+            border: 1px solid var(--green-dim); display: flex; gap: 6px; align-items: baseline;
+        }
+        .roller-overlay .ro-stat span {
+            font-size: 9px; color: var(--text-dim);
+        }
+        .roller-overlay .ro-stat b {
+            font-size: 11px; color: #fff; font-weight: 700;
+        }
+        .roller-overlay .overlay-info {
+            position: absolute; bottom: 8px; right: 12px;
+            font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1px;
+        }
+
+        /* 返回链接 */
+        .back-link {
+            color: var(--text-dim); text-decoration: none;
+            font-size: 12px; letter-spacing: 1px; transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--green); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标题栏 -->
+        <header class="header">
+            <div class="logo">矿盾</div>
+            <h1 class="title">托辊专项检测</h1>
+            <div class="header-right"></div>
+        </header>
+
+        <!-- 侧边栏 + 内容 -->
+        <div class="body-wrap">
+            <nav class="sidebar">
+                <div class="sidebar-label">系统菜单</div>
+                <a href="../index.html">
+                    <span class="nav-icon">◈</span> 首页总览
+                </a>
+                <a href="temperature.html">
+                    <span class="nav-icon">⊗</span> 温度检测
+                </a>
+                <a href="roller.html" class="active">
+                    <span class="nav-icon">⚙</span> 托辊诊断
+                </a>
+                <a href="gas.html">
+                    <span class="nav-icon">◉</span> 气体监测
+                </a>
+                <div class="sidebar-footer">
+                    <span class="sys-dot"></span> SYS ACTIVE
+                </div>
+            </nav>
+            <div class="content-area">
+        <!-- 顶部指标卡片 -->
+        <div class="roller-metrics">
+            <div class="metric-card">
+                <div class="mc-label">受检托辊总数</div>
+                <div><span class="mc-value" id="total-rollers">1,280</span><span class="mc-unit">UNIT</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="mc-label">正常运行率</div>
+                <div><span class="mc-value g" id="normal-rate">98.4</span><span class="mc-unit">%</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="mc-label">异常点位</div>
+                <div><span class="mc-value o" id="fault-count">5</span><span class="mc-unit">ALARM</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="mc-label">预测维护建议</div>
+                <div><span class="mc-value" style="color:#ffcc00;" id="plan-count">12</span><span class="mc-unit">PLAN</span></div>
+            </div>
+        </div>
+
+        <!-- 中部：传送带模型 + 频谱 -->
+        <div class="roller-row">
+            <!-- 视频监控（左 2/3）+ 托辊诊断叠加 -->
+            <div class="video-module" style="flex:2;">
+                <span class="vm-label">实时监控</span>
+                <video autoplay loop muted playsinline>
+                    <source src="../tgsp.mp4" type="video/mp4">
+                </video>
+                <!-- 托辊诊断叠加层 -->
+                <div class="roller-overlay">
+                    <div class="ro-grid"></div>
+                    <div class="ro-measure" style="top:25%;left:15%;">
+                        <div class="ro-cross"></div>
+                        <span class="ro-tag warn">轴承异响 98.2%</span>
+                    </div>
+                    <div class="ro-measure" style="top:55%;left:60%;">
+                        <div class="ro-cross"></div>
+                        <span class="ro-tag risk">外圈磨损 84.5%</span>
+                    </div>
+                    <div class="ro-measure" style="top:40%;left:40%;">
+                        <div class="ro-cross"></div>
+                        <span class="ro-tag ok">运行正常</span>
+                    </div>
+                    <div class="ro-stats">
+                        <div class="ro-stat"><span>转速</span><b>1,420 rpm</b></div>
+                        <div class="ro-stat"><span>振动</span><b>2.8 mm/s</b></div>
+                        <div class="ro-stat"><span>温度</span><b>46.2°C</b></div>
+                    </div>
+                    <div class="overlay-info">BEARING DIAG · AI 声纹分析</div>
+                </div>
+            </div>
+            <!-- 右侧 1/3 堆叠 -->
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--gap);min-width:0;">
+                <div class="conveyor-card" style="flex:1;">
+                    <div class="card-header">
+                        <h3 class="card-title">全线托辊数字化镜像</h3>
+                        <span style="font-size:10px;color:var(--text-dim);">实时监测中</span>
+                    </div>
+                    <div class="conveyor-model">
+                        <div class="belt"></div>
+                        <div class="rollers-row">
+                            <div class="roller-dot"><div class="rd-visual"></div><span class="rd-label">ID-1021</span></div>
+                            <div class="roller-dot"><div class="rd-visual"></div><span class="rd-label">ID-1022</span></div>
+                            <div class="roller-dot"><div class="rd-visual warn"></div><span class="rd-label warn-text">FAULT-A</span></div>
+                            <div class="roller-dot"><div class="rd-visual"></div><span class="rd-label">ID-1024</span></div>
+                            <div class="roller-dot"><div class="rd-visual risk"></div><span class="rd-label risk-text">WARN</span></div>
+                            <div class="roller-dot"><div class="rd-visual"></div><span class="rd-label">ID-1026</span></div>
+                        </div>
+                        <div class="belt-legend">
+                            <span><span class="dot g"></span> 正常</span>
+                            <span><span class="dot o"></span> 异响/故障</span>
+                            <span><span class="dot y"></span> 轴承高温</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--green-faint);font-size:10px;">
+                        <span style="color:var(--text-dim);">诊断引擎: AI声纹特征匹配</span>
+                        <span style="color:var(--green);">SCAN OFFSET: 12.4ms</span>
+                    </div>
+                </div>
+                <div class="spectrum-card" style="flex:1;">
+                    <div class="card-header">
+                        <h3 class="card-title">声纹频谱分析</h3>
+                    </div>
+                    <div class="spectrum-bars">
+                        <div class="spec-bar" style="height:40%;background:rgba(0,224,122,0.4);animation-delay:0.1s;"></div>
+                        <div class="spec-bar" style="height:60%;background:rgba(0,224,122,0.55);animation-delay:0.4s;"></div>
+                        <div class="spec-bar" style="height:85%;background:var(--warn);animation-delay:0.2s;"></div>
+                        <div class="spec-bar" style="height:50%;background:rgba(0,224,122,0.5);animation-delay:0.5s;"></div>
+                        <div class="spec-bar" style="height:30%;background:rgba(0,224,122,0.3);animation-delay:0.3s;"></div>
+                        <div class="spec-bar" style="height:70%;background:rgba(0,224,122,0.65);animation-delay:0.6s;"></div>
+                        <div class="spec-bar" style="height:55%;background:#ffcc00;animation-delay:0.15s;"></div>
+                    </div>
+                    <div class="spec-stat">
+                        <span>振动频率</span><span style="color:#fff;">14.2 Hz</span>
+                    </div>
+                    <div class="spec-stat">
+                        <span>摩擦系数</span><span style="color:var(--warn);">0.42 μ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部：异常报告表 -->
+        <div class="report-card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 class="card-title">待处理异常报告</h3>
+                <span style="font-size:10px;padding:3px 10px;border:1px solid var(--warn);color:var(--warn);border-radius:2px;">需立即干预</span>
+            </div>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>设备编号</th>
+                        <th>位置</th>
+                        <th>异常类型</th>
+                        <th>置信度</th>
+                        <th>诊断状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="id-cell">#ROLLER-1023</td>
+                        <td>B1 皮带 · 322m 处</td>
+                        <td class="type-warn">轴承滚珠破损</td>
+                        <td>98.2%</td>
+                        <td><span style="padding:3px 10px;border:1px solid var(--green);color:var(--green);border-radius:2px;font-size:11px;">派工</span></td>
+                    </tr>
+                    <tr>
+                        <td class="id-cell">#ROLLER-1045</td>
+                        <td>B1 皮带 · 540m 处</td>
+                        <td class="type-risk">外圈磨损预警</td>
+                        <td>84.5%</td>
+                        <td><span style="padding:3px 10px;border:1px solid var(--text-dim);color:var(--text-dim);border-radius:2px;font-size:11px;">观察</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+            </div><!-- /content-area -->
+        </div><!-- /body-wrap -->
+    </div>
+
+    <script src="../js/data-bridge.js"></script>
+    <script src="../js/roller.js"></script>
+</body>
+</html>

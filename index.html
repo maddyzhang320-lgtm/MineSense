@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="智感矿安">
+    <meta name="theme-color" content="#0a0e17">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./assets/icon-192.png">
+    <title>智感矿安 - 矿山瓦斯及皮带运输安全智能监测联动系统 V1.0</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <!-- Three.js 通过 import map 加载 ES Module 版本 -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script src="./libs/echarts.min.js"></script>
+    <script src="./libs/gsap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标题栏 -->
+        <header class="header">
+            <div class="logo">智感矿安</div>
+            <h1 class="title">矿山瓦斯及皮带运输安全智能监测联动系统 V1.0</h1>
+            <div class="header-right"></div>
+        </header>
+
+        <!-- 侧边栏 + 内容 -->
+        <div class="body-wrap">
+            <nav class="sidebar">
+                <div class="sidebar-label">系统菜单</div>
+                <a href="index.html" class="active">
+                    <span class="nav-icon">◈</span> 首页总览
+                </a>
+                <a href="pages/temperature.html">
+                    <span class="nav-icon">⊗</span> 温度检测
+                </a>
+                <a href="pages/roller.html">
+                    <span class="nav-icon">⚙</span> 托辊诊断
+                </a>
+                <a href="pages/gas.html">
+                    <span class="nav-icon">◉</span> 气体监测
+                </a>
+                <div class="sidebar-footer">
+                    <span class="sys-dot"></span> SYS ACTIVE
+                </div>
+            </nav>
+            <div class="content-area">
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 左侧主视觉区 -->
+            <section class="main-visual">
+                <!-- 视频背景 -->
+                <video class="visual-video" autoplay loop muted playsinline>
+                    <source src="./sp.mp4" type="video/mp4">
+                </video>
+                <!-- 全景建模悬浮窗 -->
+                <div class="model-window">
+                    <div class="window-header">
+                        <h3 class="window-title">全景建模</h3>
+                        <div class="window-actions">
+                            <span class="win-dot"></span>
+                            <span class="win-dot"></span>
+                            <span class="win-dot"></span>
+                        </div>
+                    </div>
+                    <div id="three-scene" class="scene-container"></div>
+                </div>
+            </section>
+
+            <!-- 右侧数据面板区 -->
+            <aside class="data-panel">
+                <!-- 主负载数据 -->
+                <div class="data-card">
+                    <div class="card-header">
+                        <h3 class="card-title">主负载数据</h3>
+                    </div>
+                    <div id="main-load-chart" class="chart-container"></div>
+                    <div class="chart-legend-row">
+                        <span class="legend-dot" style="background:#00e07a"></span>
+                        <span>验收</span>
+                    </div>
+                </div>
+
+                <!-- 原负载数据 -->
+                <div class="data-card">
+                    <div class="card-header">
+                        <h3 class="card-title">原负载数据</h3>
+                    </div>
+                    <div class="load-info">
+                        <div class="load-item">
+                            <span class="load-label">瞬时量:</span>
+                            <span class="load-value"><span id="load-vol">100</span><small>m³</small></span>
+                        </div>
+                        <div class="load-item">
+                            <span class="load-label">分仓重量:</span>
+                            <span class="load-value"><span id="load-weight">318</span><small>t</small></span>
+                        </div>
+                        <div class="load-item">
+                            <span class="load-label">分仓容积:</span>
+                            <span class="load-value"><span id="load-volume">9</span><small>%</small></span>
+                        </div>
+                        <div class="load-item">
+                            <span class="load-label">实时负载:</span>
+                            <span class="load-value"><span id="load-real">96</span><small>%</small></span>
+                        </div>
+                        <div class="load-bar">
+                            <div class="load-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部运行参数区 -->
+        <section class="params-panel">
+            <!-- 设备运行参数 -->
+            <div class="params-card">
+                <div class="card-header">
+                    <h3 class="card-title">运行参数</h3>
+                </div>
+                <div class="table-wrap">
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>参数项</th>
+                                <th>预警</th>
+                                <th>健康</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>滚筒温度</td>
+                                <td><span class="count" id="param1-warn">25.8</span>℃</td>
+                                <td><span class="count" id="param1-health">19.8</span>℃</td>
+                            </tr>
+                            <tr>
+                                <td>电机转速</td>
+                                <td><span class="count" id="param2-warn">100.0</span>%</td>
+                                <td><span class="count" id="param2-health">0.0</span></td>
+                            </tr>
+                            <tr>
+                                <td>轴承振动</td>
+                                <td><span class="count" id="param3-warn">1.2</span>mm/s</td>
+                                <td><span class="count" id="param3-health">0.0</span>mm/s</td>
+                            </tr>
+                            <tr>
+                                <td>输送带速度</td>
+                                <td><span class="count" id="param4-warn">24.2</span>m/s</td>
+                                <td><span class="count" id="param4-health">21.8</span>m/s</td>
+                            </tr>
+                            <tr>
+                                <td>输送带跑偏</td>
+                                <td><span class="count" id="param5-warn">33.5</span>mm</td>
+                                <td><span class="count" id="param5-health">31.5</span>mm</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 分站合格率统计 -->
+            <div class="params-card">
+                <div class="card-header">
+                    <h3 class="card-title">运行参数</h3>
+                </div>
+                <div class="table-wrap">
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>编码</th>
+                                <th>合格率</th>
+                                <th>接收</th>
+                                <th>筛分</th>
+                                <th>折算</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>S701</td>
+                                <td><span class="count" id="param6-rate">100.0</span>%</td>
+                                <td>00</td><td>5</td><td>77140</td>
+                            </tr>
+                            <tr>
+                                <td>1018</td>
+                                <td><span class="count" id="param7-rate">100.0</span>%</td>
+                                <td>20</td><td>4</td><td>858</td>
+                            </tr>
+                            <tr>
+                                <td>8128</td>
+                                <td><span class="count" id="param8-rate">100.0</span>%</td>
+                                <td>40</td><td>1</td><td>3268</td>
+                            </tr>
+                            <tr>
+                                <td>CW1</td>
+                                <td><span class="count" id="param9-rate">100.0</span>%</td>
+                                <td>80</td><td>9</td><td>224</td>
+                            </tr>
+                            <tr>
+                                <td>BWT</td>
+                                <td><span class="count" id="param10-rate">100.0</span>%</td>
+                                <td>70</td><td>5</td><td>7300</td>
+                            </tr>
+                            <tr>
+                                <td>HDC</td>
+                                <td><span class="count" id="param11-rate">100.0</span>%</td>
+                                <td>0</td><td>221</td><td>3824</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 矿质分析结果 -->
+            <div class="params-card">
+                <div class="card-header">
+                    <h3 class="card-title">运行参数</h3>
+                </div>
+                <div class="table-wrap">
+                    <table class="params-table">
+                        <thead>
+                            <tr>
+                                <th>编码</th>
+                                <th>分析结果</th>
+                                <th>阀值</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>粒度</td>
+                                <td><span class="count" id="param12-res">6.8</span></td>
+                                <td>10%</td>
+                            </tr>
+                            <tr>
+                                <td>成分</td>
+                                <td><span class="count" id="param13-res">18</span>%</td>
+                                <td>25%</td>
+                            </tr>
+                            <tr>
+                                <td>含水量</td>
+                                <td><span class="count" id="param14-res">14</span>%</td>
+                                <td>10%</td>
+                            </tr>
+                            <tr>
+                                <td>密度</td>
+                                <td><span class="count" id="param15-res">7.4</span></td>
+                                <td>35%</td>
+                            </tr>
+                            <tr>
+                                <td>稳定性</td>
+                                <td><span class="count" id="param16-res">15</span>%</td>
+                                <td>0%</td>
+                            </tr>
+                            <tr>
+                                <td>硬度</td>
+                                <td><span class="count" id="param17-res">4</span></td>
+                                <td>85</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 实时可视化 -->
+            <div class="params-card">
+                <div class="card-header">
+                    <h3 class="card-title">实时可视化</h3>
+                </div>
+                <div id="real-time-chart" class="chart-area"></div>
+                <div class="chart-legend-row center">
+                    <span class="legend-dot" style="background:#00e07a"></span>
+                    <span>3D模型</span>
+                </div>
+            </div>
+        </section>
+            </div><!-- /content-area -->
+        </div><!-- /body-wrap -->
+    </div>
+
+    <script src="./js/data-bridge.js"></script>
+    <script type="module" src="./js/three-scene.js"></script>
+    <script src="./js/chart.js"></script>
+    <script src="./js/main.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js');
+      }
+    </script>
+</body>
+</html>

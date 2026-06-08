@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>温度专项检测 - 矿盾平台</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../libs/echarts.min.js"></script>
+    <script src="../libs/gsap.min.js"></script>
+    <style>
+        /* ===== 温度检测页面专属布局 ===== */
+
+        /* 指标卡片 */
+        .temp-metrics {
+            display: flex;
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .temp-card {
+            flex: 1;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+            transition: border-color 0.4s;
+        }
+        .temp-card:hover { border-color: var(--green); }
+        .temp-card.warn-card { border-left: 3px solid var(--warn); }
+        .temp-card.risk-card { border-left: 3px solid #ffcc00; }
+        .temp-card.ok-card { border-left: 3px solid var(--green); }
+        .tc-label {
+            font-size: 11px; color: var(--text-dim); letter-spacing: 2px;
+            margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .tc-value {
+            font-size: 44px; font-weight: 900;
+        }
+        .tc-value.warn { color: var(--warn); text-shadow: 0 0 20px rgba(255,152,0,0.4); }
+        .tc-value.risk { color: #ffcc00; text-shadow: 0 0 16px rgba(255,204,0,0.3); }
+        .tc-value.ok { color: #fff; }
+        .tc-unit { font-size: 16px; color: var(--text-dim); margin-left: 4px; font-weight: 400; }
+        .tc-bar {
+            height: 3px; border-radius: 2px; margin-top: 6px; background: rgba(255,255,255,0.06);
+            overflow: hidden;
+        }
+        .tc-bar-fill { height: 100%; border-radius: 2px; }
+        .tc-bar-fill.warn { background: var(--warn); box-shadow: 0 0 8px rgba(255,152,0,0.4); }
+        .tc-bar-fill.risk { background: #ffcc00; }
+        .tc-threshold { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+
+        /* 中部双栏 */
+        .temp-row {
+            display: flex;
+            gap: var(--gap);
+            flex: 1;
+            min-height: 0;
+            margin-bottom: var(--gap);
+        }
+
+        /* 热成像区 */
+        .thermal-card {
+            flex: 1.5;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .thermal-area {
+            flex: 1;
+            background: linear-gradient(135deg, #0a0018 0%, #180030 30%, #2a0800 70%, #1a0000 100%);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0,224,122,0.08);
+        }
+        /* 热源光斑 */
+        .heat-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(30px);
+            animation: heat-pulse 2s ease-in-out infinite;
+        }
+        @keyframes heat-pulse {
+            0%,100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.08); }
+        }
+        /* 扫描线 */
+        .scan-v {
+            position: absolute; top: 0; width: 1px; height: 100%;
+            background: rgba(0,224,122,0.15);
+            animation: scan-h 5s linear infinite;
+        }
+        @keyframes scan-h { 0% { left: 0%; } 100% { left: 100%; } }
+        /* 十字准星 */
+        .reticle {
+            position: absolute; width: 36px; height: 36px;
+            transform: translate(-50%, -50%); pointer-events: none;
+        }
+        .reticle::before {
+            content: ''; position: absolute; top: 50%; left: -8px; right: -8px;
+            height: 1px; background: rgba(255,255,255,0.4);
+        }
+        .reticle::after {
+            content: ''; position: absolute; left: 50%; top: -8px; bottom: -8px;
+            width: 1px; background: rgba(255,255,255,0.4);
+        }
+        .reticle-label {
+            position: absolute; top: -22px; left: 18px;
+            font-size: 10px; font-weight: 700; white-space: nowrap;
+            background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 2px;
+        }
+        .reticle-label.warn { color: var(--warn); border: 1px solid rgba(255,152,0,0.3); }
+        .reticle-label.risk { color: #ffcc00; border: 1px solid rgba(255,204,0,0.3); }
+        /* 温度色标 */
+        .temp-scale {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            font-size: 9px; color: rgba(255,255,255,0.5); font-family: monospace;
+        }
+        .temp-scale .bar {
+            width: 6px; height: 100px;
+            background: linear-gradient(to bottom, #ff0000, #ff6600, #ffcc00, #00ff66, #0066ff);
+            border-radius: 3px;
+        }
+
+        /* 趋势图卡片 */
+        .trend-card {
+            flex: 0.8;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .chart-body { flex: 1; min-height: 0; }
+
+        /* 传感器列表 */
+        .sensor-row {
+            display: flex;
+            gap: var(--gap);
+        }
+        .sensor-card {
+            flex: 1;
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: border-color 0.3s;
+        }
+        .sensor-card:hover { border-color: var(--green); }
+        .sensor-card.warn { border-left: 3px solid var(--warn); }
+        .sensor-card.risk { border-left: 3px solid #ffcc00; }
+        .sensor-card.ok { border-left: 3px solid var(--green); }
+        .sc-info .sc-name { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; text-transform: uppercase; }
+        .sc-info .sc-temp { font-size: 20px; font-weight: 800; }
+        .sc-info .sc-temp.warn-text { color: var(--warn); }
+        .sc-info .sc-temp.risk-text { color: #ffcc00; }
+        .sc-info .sc-temp.ok-text { color: var(--green); }
+        .sc-bar {
+            width: 3px; height: 36px; border-radius: 2px;
+        }
+        .sc-bar.warn-bar { background: var(--warn); }
+        .sc-bar.risk-bar { background: #ffcc00; }
+        .sc-bar.ok-bar { background: var(--green); }
+
+        /* 审计日志表格 */
+        .audit-card {
+            border: 1px solid var(--green-dim);
+            border-radius: var(--radius);
+            background: var(--bg-card);
+            overflow: hidden;
+            margin-bottom: var(--gap);
+            box-shadow: inset 0 1px 0 rgba(0,224,122,0.05);
+        }
+        .audit-table {
+            width: 100%; border-collapse: collapse; font-size: 11px;
+        }
+        .audit-table thead th {
+            background: rgba(0,60,30,0.4); color: var(--green); font-weight: 500;
+            padding: 6px 14px; border-bottom: 1px solid var(--green-dim);
+            text-align: left; white-space: nowrap; letter-spacing: 1px; font-size: 10px;
+        }
+        .audit-table tbody td {
+            padding: 6px 14px; color: var(--text);
+            border-bottom: 1px solid var(--green-faint);
+        }
+        .audit-table tbody tr:hover td { background: var(--green-faint); }
+        .audit-table .time-cell { color: var(--text-dim); }
+        .audit-table .warn-cell { color: var(--warn); font-weight: 600; }
+        .audit-table .info-cell { color: var(--green); }
+        .audit-table .log-cell { color: var(--text-dim); }
+
+        /* 热成像视频叠加 */
+        .thermal-overlay {
+            position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        }
+        .thermal-overlay .scan-v {
+            position: absolute; top: 0; width: 1px; height: 100%;
+            background: rgba(255, 100, 30, 0.2);
+            animation: scan-h 5s linear infinite;
+        }
+        .thermal-overlay .heat-blob {
+            position: absolute; border-radius: 50%; filter: blur(20px);
+            animation: heat-pulse 2s ease-in-out infinite;
+        }
+        .thermal-overlay .reticle {
+            position: absolute; width: 32px; height: 32px;
+            transform: translate(-50%, -50%);
+        }
+        .thermal-overlay .reticle::before {
+            content: ''; position: absolute; top: 50%; left: -6px; right: -6px;
+            height: 1px; background: rgba(255,255,255,0.5);
+        }
+        .thermal-overlay .reticle::after {
+            content: ''; position: absolute; left: 50%; top: -6px; bottom: -6px;
+            width: 1px; background: rgba(255,255,255,0.5);
+        }
+        .thermal-overlay .reticle-label {
+            position: absolute; top: -20px; left: 16px;
+            font-size: 10px; font-weight: 700; white-space: nowrap;
+            background: rgba(0,0,0,0.75); padding: 2px 6px; border-radius: 2px;
+        }
+        .thermal-overlay .reticle-label.warn { color: var(--warn); border: 1px solid rgba(255,152,0,0.3); }
+        .thermal-overlay .reticle-label.risk { color: #ffcc00; border: 1px solid rgba(255,204,0,0.3); }
+        .thermal-overlay .temp-scale {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .thermal-overlay .temp-scale .bar {
+            width: 5px; border-radius: 3px;
+            background: linear-gradient(to bottom, #ff0000, #ff6600, #ffcc00, #00ff66, #0066ff);
+        }
+        .thermal-overlay .overlay-info {
+            position: absolute; bottom: 8px; right: 12px;
+            font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1px;
+        }
+        @keyframes scan-h { 0% { left: 0%; } 100% { left: 100%; } }
+        @keyframes heat-pulse { 0%,100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.06); } }
+
+        /* 返回链接 */
+        .back-link {
+            color: var(--text-dim); text-decoration: none;
+            font-size: 12px; letter-spacing: 1px; transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--green); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标题栏 -->
+        <header class="header">
+            <div class="logo">矿盾</div>
+            <h1 class="title">温度专项检测</h1>
+            <div class="header-right"></div>
+        </header>
+
+        <!-- 侧边栏 + 内容 -->
+        <div class="body-wrap">
+            <nav class="sidebar">
+                <div class="sidebar-label">系统菜单</div>
+                <a href="../index.html">
+                    <span class="nav-icon">◈</span> 首页总览
+                </a>
+                <a href="temperature.html" class="active">
+                    <span class="nav-icon">⊗</span> 温度检测
+                </a>
+                <a href="roller.html">
+                    <span class="nav-icon">⚙</span> 托辊诊断
+                </a>
+                <a href="gas.html">
+                    <span class="nav-icon">◉</span> 气体监测
+                </a>
+                <div class="sidebar-footer">
+                    <span class="sys-dot"></span> SYS ACTIVE
+                </div>
+            </nav>
+            <div class="content-area">
+        <!-- 审计日志 -->
+        <div class="audit-card">
+            <div class="card-header" style="padding:10px 14px;">
+                <h3 class="card-title">系统事件审计流水</h3>
+            </div>
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>时间</th><th>级别</th><th>事件源</th><th>描述</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="time-cell">14:22:05</td>
+                        <td class="warn-cell">WARN</td>
+                        <td>TEMP_SENSOR_01</td>
+                        <td>触发二级阈值报警 (89.2°C)</td>
+                    </tr>
+                    <tr>
+                        <td class="time-cell">14:15:12</td>
+                        <td class="info-cell">INFO</td>
+                        <td>SYS_DAEMON</td>
+                        <td>自动环境增益校准完成</td>
+                    </tr>
+                    <tr>
+                        <td class="time-cell">14:00:01</td>
+                        <td class="log-cell">LOG</td>
+                        <td>ADMIN_USER</td>
+                        <td>执行 24H 历史数据导出操作</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 核心温度指标 -->
+        <div class="temp-metrics">
+            <div class="temp-card warn-card">
+                <div class="tc-label">
+                    <span>机头滚筒核心温度</span>
+                    <span style="font-size:10px;color:var(--warn);letter-spacing:1px;">CRITICAL</span>
+                </div>
+                <div>
+                    <span class="tc-value warn" id="core-temp">89.2</span>
+                    <span class="tc-unit">°C</span>
+                </div>
+                <div class="tc-bar"><div class="tc-bar-fill warn" style="width:98%;"></div></div>
+                <div class="tc-threshold">预警阈值: 90.0 °C</div>
+            </div>
+            <div class="temp-card risk-card">
+                <div class="tc-label">
+                    <span>皮带载面平均温度</span>
+                </div>
+                <div>
+                    <span class="tc-value risk" id="belt-temp">72.4</span>
+                    <span class="tc-unit">°C</span>
+                </div>
+                <div class="tc-bar"><div class="tc-bar-fill risk" style="width:75%;"></div></div>
+                <div class="tc-threshold">注意监控</div>
+            </div>
+            <div class="temp-card ok-card">
+                <div class="tc-label">
+                    <span>环境参考温度</span>
+                </div>
+                <div>
+                    <span class="tc-value ok" id="ambient-temp">27.8</span>
+                    <span class="tc-unit">°C</span>
+                </div>
+                <div class="tc-threshold" style="color:var(--green);">Condition Normal</div>
+            </div>
+        </div>
+
+        <!-- 热成像 + 趋势图 -->
+        <div class="temp-row">
+            <!-- 视频监控（左 2/3）+ 热成像叠加 -->
+            <div class="video-module" style="flex:2;">
+                <span class="vm-label">实时监控</span>
+                <video autoplay loop muted playsinline>
+                    <source src="../wdsp.mp4" type="video/mp4">
+                </video>
+                <!-- 热成像叠加层 -->
+                <div class="thermal-overlay">
+                    <div class="scan-v"></div>
+                    <div class="heat-blob" style="top:20%;left:15%;width:90px;height:90px;background:rgba(255,60,0,0.3);"></div>
+                    <div class="heat-blob" style="top:50%;left:55%;width:120px;height:60px;background:rgba(255,140,0,0.25);animation-delay:0.8s;"></div>
+                    <div class="reticle" style="top:28%;left:18%;"><span class="reticle-label warn">91.5°C</span></div>
+                    <div class="reticle" style="top:58%;left:60%;"><span class="reticle-label risk">76.2°C</span></div>
+                    <div class="temp-scale" style="right:10px;"><span style="font-size:9px;color:rgba(255,255,255,0.5);">100</span><div class="bar" style="height:80px;"></div><span style="font-size:9px;color:rgba(255,255,255,0.5);">0</span></div>
+                    <div class="overlay-info">IR THERMAL · ±0.5°C</div>
+                </div>
+            </div>
+            <!-- 右侧 1/3 堆叠 -->
+            <div style="flex:1;display:flex;flex-direction:column;gap:var(--gap);min-width:0;">
+                <div class="thermal-card" style="flex:1;">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                        <h3 class="card-title">热成像监测 · SECTION_01</h3>
+                        <span style="font-size:10px;color:var(--warn);letter-spacing:1px;">● LIVE</span>
+                    </div>
+                    <div class="thermal-area">
+                        <div class="scan-v"></div>
+                        <div class="heat-blob" style="top:25%;left:18%;width:100px;height:100px;background:rgba(255,60,0,0.35);animation-delay:0s;"></div>
+                        <div class="heat-blob" style="top:45%;left:50%;width:140px;height:70px;background:rgba(255,140,0,0.3);animation-delay:0.6s;"></div>
+                        <div class="heat-blob" style="top:15%;left:70%;width:60px;height:60px;background:rgba(255,200,0,0.2);animation-delay:1.2s;"></div>
+                        <div class="reticle" style="top:32%;left:22%;"><span class="reticle-label warn">89.2°C</span></div>
+                        <div class="reticle" style="top:55%;left:52%;"><span class="reticle-label risk">75.1°C</span></div>
+                        <div class="temp-scale"><span>100</span><div class="bar"></div><span>0</span></div>
+                    </div>
+                </div>
+                <div class="trend-card" style="flex:1;">
+                    <div class="card-header">
+                        <h3 class="card-title">24H 温度波动趋势</h3>
+                    </div>
+                    <div id="temp-trend-chart" class="chart-body"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 传感器点位工况 -->
+        <div class="sensor-row">
+            <div class="sensor-card warn">
+                <div class="sc-info">
+                    <div class="sc-name">01 · 机头滚筒</div>
+                    <div class="sc-temp warn-text">89.2°C</div>
+                </div>
+                <div class="sc-bar warn-bar"></div>
+            </div>
+            <div class="sensor-card risk">
+                <div class="sc-info">
+                    <div class="sc-name">02 · 皮带中段</div>
+                    <div class="sc-temp risk-text">72.4°C</div>
+                </div>
+                <div class="sc-bar risk-bar"></div>
+            </div>
+            <div class="sensor-card ok">
+                <div class="sc-info">
+                    <div class="sc-name">03 · 机尾滚筒</div>
+                    <div class="sc-temp ok-text">56.1°C</div>
+                </div>
+                <div class="sc-bar ok-bar"></div>
+            </div>
+            <div class="sensor-card risk">
+                <div class="sc-info">
+                    <div class="sc-name">04 · 驱动电机</div>
+                    <div class="sc-temp risk-text">78.3°C</div>
+                </div>
+                <div class="sc-bar risk-bar"></div>
+            </div>
+        </div>
+            </div><!-- /content-area -->
+        </div><!-- /body-wrap -->
+    </div>
+
+    <script src="../js/data-bridge.js"></script>
+    <script src="../js/temperature.js"></script>
+</body>
+</html>
